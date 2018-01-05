@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="AUTHOR" content="RABBIT, KAN LENOU, HAN.R.B">
+		<meta charset="UTF-8">
+		<meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+		<link rel="stylesheet" type="text/css" href="milligram.min.css">
+		<title>SimpleStorage dApp</title>
+		<style>
+			body {margin-left:50px;}
+			#storedData {font-size:24px; margin-right:10px;}
+			#newValue {width: 200px; margin-right:10px; text-align:right;}
+		</style>
+		<!-- script src="https://cdn.rawgit.com/ethereum/web3.js/develop/dist/web3.js"></script -->
+		<script src="./web3.js-develop/dist/web3.js"></script>
+		<!-- script src="https://code.jquery.com/jquery-3.1.1.slim.min.js"></script -->
+		<script>
+			var contractAddress = '0x813a2dd57fd93e832f8f073291497e49817cc5d1';
+			var abi =	[
+							{"constant":false,"inputs":[{"name":"x","type":"uint256"}],"name":"set","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+							{"constant":true,"inputs":[],"name":"get","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}
+						];
+			var simpleStorageContract;
+			var simpleStorage;
+
+			window.addEventListener('load', function() {
+				// Checking if Web3 has been injected by the browser (Mist/MetaMask)
+				if (typeof web3 !== 'undefined') {
+					// Use Mist/MetaMask's provider
+					window.web3 = new Web3(web3.currentProvider);
+				} else {
+					console.log('No web3? You should consider trying MetaMask!');
+					// fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
+					window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+				}
+				// Now you can start your app & access web3 freely:
+				startApp();
+			});
+
+			function startApp() {
+				simpleStorageContract = web3.eth.contract(abi);
+				simpleStorage = simpleStorageContract.at(contractAddress);
+				document.getElementById('contractAddr').innerHTML = getLink(contractAddress);
+
+				web3.eth.getAccounts(function(e,r){
+					if (r != 'undefined' && r != null) {
+						document.getElementById('accountAddr').innerHTML = getLink(r[0]);
+					}
+					else {
+						document.getElementById('accountAddr').innerHTML = '---';
+					}
+				});
+				getValue();
+			}
+			function getLink(addr) {
+				return '<a target="_blank" href=https://ropsten.etherscan.io/address/' + addr + '>' + addr +'</a>';
+			}
+			function getValue() {
+				simpleStorage.get(function(e,r){
+					if (r != 'undefined' && r != null) {
+						document.getElementById('storedData').innerHTML = r.toNumber();
+					}
+					else {
+						document.getElementById('storedData').innerHTML = '---';
+					}
+				});
+				web3.eth.getBlockNumber(function(e,r){
+					if (r != 'undefined' && r != null) {
+						document.getElementById('lastBlock').innerHTML = r;
+					}
+					else {
+						document.getElementById('lastBlock').innerHTML = '---';
+					}
+				});
+			}
+			function setValue() {
+				var newValue = document.getElementById('newValue').value;
+				var txid;
+				simpleStorage.set(newValue, function(e,r){
+					document.getElementById('result').innerHTML = 'Transaction id: ' + r + '<span id="pending" style="color:red;">, Status: Pending</span>';
+					txid = r;
+				});
+				var filter = web3.eth.filter('lastest');
+				filter.watch(function(e, r) {
+					getValue();
+					web3.eth.getTransaction(txid, function(e,r){
+						if (r != null && r.blockNumber > 0) {
+							document.getElementById('pending').innerHTML = ', Status: Register (block-number: ' + r.blockNumber + ')';
+							document.getElementById('pending').style.cssText ='color:green;';
+							document.getElementById('storedData').style.cssText ='color:green; font-size:24px;';
+							filter.stopWatching();
+						}
+					 });
+				});
+			}
+		</script>
+	</head>
+	<body>
+		<h3>SimpleStorage dApp Sample</h3>
+		<ul>
+			<li>SmartContract Address: <span id="contractAddr"></span></li>
+			<li>My Account Address: <span id="accountAddr"></span></li>
+			<li>Current Stored Value: <span id="storedData"></span>
+				<button onclick="getValue()">Refresh</button> (Last Block: <span id="lastBlock"></span>)
+			</li>
+			<li>
+				<input id="newValue" type="text"><button onclick="setValue()">Set New Value</button>
+				<div id="result"></div>
+			</li>
+			<li>After storing new value and pending transaction has been included in chain-block, this page will be updated automatically.</li>
+		</ul>
+
+		Contract Source Code
+		<script src="https://gist.github.com/atomrigs/7c633570496b79623bed5d1286f93f3a.js"></script>
+
+		HTML Source Code<br>
+		<a href="https://github.com/atomrigs/atomrigs.github.io/blob/master/simplestorage.html">https://github.com/atomrigs/atomrigs.github.io/blob/master/simplestorage.html</a>
+		<br><br>
+		<i>Created by rabbit © 2018</i>
+	</body>
+</html>
